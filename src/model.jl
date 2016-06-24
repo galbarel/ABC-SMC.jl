@@ -1,3 +1,5 @@
+using Distributions
+
 abstract ABC_Model
 
 """ internal representation of a model
@@ -21,16 +23,7 @@ type Deterministic_Model <: ABC_Model
     num_params::Int
 
     #prior distributions for parameters
-    priors::Array{Any,1}
-    #constant priors are saved as Float64
-    #distribution priors are saved as one of three:
-    # Distributions.Uniform
-    # Distributions.Normal
-    # Distributions.LogNormal
-    # with the corresponding parameters
-
-    #TODO: how to make array of specific distribution types
-    #Array{Union{Distributions}}
+    priors::Array{Union{Float64,Distributions.Uniform,Distributions.Normal,Distributions.LogNormal},1}
 
     #integration properties
     integration_mode::ASCIIString
@@ -58,24 +51,15 @@ type Stochastic_Model <: ABC_Model
     num_params::Int
 
     #prior distributions for parameters
-    priors::Array{Any,1}
-    #constant priors are saved as Float64
-    #distribution priors are saved as one of three:
-    # Distributions.Uniform
-    # Distributions.Normal
-    # Distributions.LogNormal
-    # with the corresponding parameters
-
-    #TODO: how to make array of specific distribution types
-    #Array{Union{Distributions}}
+    priors::Array{Union{Float64,Distributions.Uniform,Distributions.Normal,Distributions.LogNormal},1}
+    #priors::Array{Any,1}
 
     #integration properties
     integration_mode::ASCIIString
+    integration_repeats::Int64
     integration_matrix::Array{Array{Int64,1},1}
     integration_hazards::Array{Function,1}
     initial_conditions::Array{Float64,1}
-
-
 
     """this is the model constructor"""
     function Stochastic_Model()
@@ -98,20 +82,41 @@ type ABC_Algorithm
 
     #epsilon
     epsilon::Array{Float64,1}
+    #TODO: set in the constractor - if the user does not input a list of epsilons, then generate an empty list which will indicate an automatic epsilon should be used
 
     #number of runs for each step
     particles::Int
-    populations::Int
 
-    ###TODO: check if number of populations is set according to epsilon
+    #perturbation kernel
+    kernels::Array{Distributions.Uniform,1}
+    #TODO: change type when more options for kernels are added
 
-    #TODO: add kernel, number of simulations when using Gillespie (beta)
+    #distance function
+    distance_func::ASCIIString
 
-    """this is the model constructor"""
+    """this is the algorithm constructor"""
     function ABC_Algorithm()
 
         new()
 
     end
+
+end
+
+"""
+internal type of a population from an ABC SMC simulation
+"""
+type ABC_population
+    
+    index::Int64
+
+    #simulations information
+    num_sampled::Int64
+    epsilon::Float64
+
+    #results
+    particles::Array{Array{Float64,1},1}
+    weights::Array{Float64,1}
+
 
 end

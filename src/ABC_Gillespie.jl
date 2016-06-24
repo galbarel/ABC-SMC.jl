@@ -21,12 +21,11 @@ function Gillespie_abc(params::Array{Float64,1},init_values::Array{Float64,1},st
 	flag = true
 	concentrations = Array{Array{Float64,1},1}(length(times))
 
-	#while simulation time hasn't exceeded the last time point
 	#TODO: make sure this is the way to deal with the wanted time points
-	#TODO: how to get specific number of data points
 	
 	current_values = init_values
 
+	#while simulation time hasn't exceeded the last time point
 	while flag
 		(next_values,next_time) = Gillespie_abc_one_step(params,current_values,stoch_matrix,hazards,time)
 		concentrations[time_counter] = next_values
@@ -76,14 +75,14 @@ function Gillespie_abc_one_step(params::Array{Float64,1},values::Array{Float64,1
 
 	#get the next time step
 	#t_inc = pdf(Exponential(),h0)
-	t_inc = (-1.0/h0) * log(rand())
+	t_inc = (-1.0/h0) * log(rand(Uniform(0,1)))
 	t_next = time + t_inc
 
 	#get the probability for each reaction
 	h_probs = h_vals ./ h0
 
 	#choose a reaction according to their probabilities
-	rand_int = rand()
+	rand_int = rand(Uniform(0,1))
 	cum_prob = 0.0
 	chosen_hazard = 0
 
