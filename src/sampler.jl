@@ -47,7 +47,8 @@ function abc_rejection(alg::ABC_Algorithm,
 			#the weights in this case is the number of accepted simulations
 			weights[num_accepted] = accepted_sim
 
-			println("number accepted ", num_accepted)
+			println("accepted particles: ", num_accepted)
+
 		end
 
 	end
@@ -56,7 +57,7 @@ function abc_rejection(alg::ABC_Algorithm,
 	weights = weights ./ sum(weights)
 
 
-	return ABC_population(1,counter,alg.epsilon[1],posterior,weights)
+	return [ABC_population(1,counter,alg.epsilon[1],posterior,weights)]
 
 end
 
@@ -77,13 +78,14 @@ function abc_smc(alg::ABC_Algorithm,
 
 	for pop in 1:length(epsilon_arr)
 
-		println("simulating population: ", pop)
+		println("population number: ", pop)
+		tic()
 
 		if pop==1
 
 			#the parameters will be sampled from the prior only
 			#simply run ABC rejection once
-			current_pop = abc_rejection(alg,model)
+			current_pop = abc_rejection(alg,model)[1]
 
 		else
 			prev_pop = results[pop-1]
@@ -91,8 +93,8 @@ function abc_smc(alg::ABC_Algorithm,
 
 		end
 
-		#println(current_pop)
 		results[pop] = current_pop
+		toc()
 
 	end
 
@@ -120,7 +122,7 @@ Input:
 Output:
 	- params : array of Float64 with one sample per parameter
 """
-function sample_params_from_prior(priors::Array{Union{Float64,Distributions.Uniform,Distributions.Normal,Distributions.LogNormal},1})
+function sample_params_from_prior(priors::Array{Union{Float64,Distributions.Uniform,Distributions.DiscreteUniform,Distributions.Normal,Distributions.LogNormal},1})
 
 	params = zeros(length(priors))
 
@@ -176,10 +178,14 @@ function run_simulation(alg::ABC_Algorithm,model::ABC_Model,params::Array{Float6
 
 	elseif model.integration_mode=="Gillespie"
 
+		#println("params: ", params)
+
 		for i in 1:integration_repeats
-			println("Gillespie run number: ", i)
+
+			#println("Gillespie run ", i)
 
 			#data = abc_gillespie(model.integration_function,stoch_matrix::Array{Int64,2},model.initial_conditions,time_end::Float64,params)
+			#TODO: check gillespie correctness 
 			data_i = Gillespie_abc(params,model.initial_conditions,model.integration_matrix,model.integration_hazards,alg.time_points)
 			data[i] = data_i
 		end
@@ -212,8 +218,6 @@ function create_population(alg::ABC_Algorithm,
 		#sample a new particle
 
 		sampled_particles = sample_and_perturb(alg,model,prev_particles,prev_weights)
-		#println("sampled particles ")
-		#println(sampled_particles)
 
 		#simulate data set with the sampled perturbed parameters
 		num_accepted = simulate_and_compare_data(alg,model,sampled_particles,pop_num)
@@ -223,11 +227,11 @@ function create_population(alg::ABC_Algorithm,
 			accepted_particles += 1
 			particles[accepted_particles] = sampled_particles
 
-			println("accepted particles ", accepted_particles)
-
 			#calculate weight for the accepted particle
 			p_weight = calculate_particle_weight(sampled_particles,model.priors,num_accepted,prev_weights,prev_particles,alg.kernels)
 			weights[accepted_particles] = p_weight
+
+			println("accepted particles: ", accepted_particles)
 
 		end
 
@@ -263,7 +267,8 @@ function simulate_and_compare_data(alg::ABC_Algorithm,
 	distances = Array{Float64,1}(length(sim_data))
 
 	#go over all data-sets (one for determinstic, multiple for stochastic)
-	for i in length(sim_data)
+	for i in 1:length(sim_data)
+
 		sim_data_i = sim_data[i]
 
 		#check the distance between the original dataset and the current simulated dataset
@@ -297,7 +302,7 @@ end
 
 
 function calculate_particle_weight(particle::Array{Float64,1},
-									priors::Array{Union{Float64,Distributions.Uniform,Distributions.Normal,Distributions.LogNormal},1},
+									priors::Array{Union{Float64,Distributions.Uniform,Distributions.DiscreteUniform,Distributions.Normal,Distributions.LogNormal},1},
 									num_accepted::Int64,
 									prev_weights::Array{Float64,1},
 									prev_particles::Array{Array{Float64,1},1},
@@ -410,8 +415,15 @@ function sample_and_perturb(alg::ABC_Algorithm,
 			
 			params[i] += rand(alg.kernels[i])
 
+			if typeof(model.priors[i]) == Distributions.DiscreteUniform
+				#need to round the value of the perturbed parameter
+				params[i] = round(Int,params[i])
+			end
+
 			#get the prior probability of the perturbed parameter
 			if typeof(model.priors[i]) == Float64
+				#round the value
+				params[i] = round(params[i])
 				#constant prior
 				if params[i]==model.priors[i]
 					param_prior_prob = 1.0
@@ -447,5 +459,13 @@ function update_kernels(particles::Array{Array{Float64,1},1},alg::ABC_Algorithm,
 		scale = maximum(p_vals) - minimum(p_vals)
 		alg.kernels[i] = Uniform(-scale/2.0,scale/2.0)
 	end
+
+end
+
+
+"""
+generate averaged data (for stochastic simulations)
+"""
+function average_data(all_data::Array{Array{Array{Float64,1},1},1})
 
 end
