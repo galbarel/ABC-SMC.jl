@@ -2,6 +2,7 @@ using Distributions
 using DataFrames
 using Gadfly
 using Compose
+using Colors
 
 abstract ABC_Model
 
@@ -85,14 +86,12 @@ type ABC_Algorithm
 
     #epsilon
     epsilon::Array{Float64,1}
-    #TODO: set in the constractor - if the user does not input a list of epsilons, then generate an empty list which will indicate an automatic epsilon should be used
 
     #number of runs for each step
     particles::Int
 
     #perturbation kernel
     kernels::Array{Distributions.Uniform,1}
-    #TODO: change type when more options for kernels are added
 
     #distance function
     distance_func::ASCIIString
@@ -114,7 +113,7 @@ type ABC_population
     index::Int64
 
     #simulations information
-    num_sampled::Int64
+    num_steps::Int64
     epsilon::Float64
 
     #results
@@ -164,8 +163,7 @@ function save_results(results::Array{ABC_population,1},model::ABC_Model,path::AS
             p_vals = [particles[k][j] for k in 1:length(particles)]
             
             #add them to the dataframe
-            #TODO: figure out how to change the name of the colum (all are called j)
-            insert!(df,j,p_vals,:j)
+            insert!(df,j,p_vals,symbol("parameter$j"))
 
             #generate a histogram plot
             plot_j = plot(x=p_vals,Geom.histogram(bincount=10),
@@ -174,7 +172,7 @@ function save_results(results::Array{ABC_population,1},model::ABC_Model,path::AS
                             Guide.title("Parameters Histogram")
                             )
             hist_plots[hist_plot_num] = plot_j
-            hist_plot_num +=5
+            hist_plot_num += (model.num_params+1)
 
             #generate scatter plots with all other parameters
             for n in 1:model.num_params
@@ -205,5 +203,42 @@ function save_results(results::Array{ABC_population,1},model::ABC_Model,path::AS
         close(pop_file)
 
     end
+    
+end
+
+
+function plot_data(data::Array{Array{Float64,1},1},time_points::FloatRange{Float64},num_params::Int64,path::ASCIIString)
+    
+    df = DataFrame()
+    df_cols = collect(1:num_params)
+    p_layers = Layer[]
+    p_colors = distinguishable_colors(num_params)
+    times = collect(time_points)
+
+    """p = plot(Guide.XLabel("Time"),
+                 Guide.YLabel("Value"),
+                 Guide.Title("Data"))
+    """
+    for j in 1:num_params
+        #get all the current parameter values
+        vals = [data[k][j] for k in 1:length(data)]
+        
+        #add them to the dataframe
+        insert!(df,j,vals,symbol("var$j"))
+
+        #create the layer
+        l = layer(x=times,y=vals,Geom.point,Theme(default_point_size=8px,default_color=color(p_colors[j])))
+        push!(p_layers,l[1])
+        #Gadfly.add_plot_element!(p,l)
+    end
+
+
+    p = plot(p_layers,Guide.XLabel("Time"),
+                     Guide.YLabel("Value"),
+                     Guide.Title("Data"),
+                     Guide.manual_color_key("Variable", [string("var",i) for i in 1:num_params], p_colors))
+
+    
+    draw(PDF(string(path,"data.pdf"),12inch,12inch),p)
     
 end

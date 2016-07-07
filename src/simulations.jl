@@ -1,6 +1,6 @@
-using ODE
+#using ODE
 #using Gillespie
-#using Sundials
+using Sundials
 
 """
 deterministic simulations (ODE solver)
@@ -17,10 +17,28 @@ output:
 """
 function abc_ode(func::Function,init_vals::Array{Float64,1},time_points::FloatRange{Float64},params::Array{Float64,1})
 
+	#solve using ODE package
 	#convert to function with no params argument
-	g = (t,v) -> func(t,v,params)
+	#g = (t,v) -> func(t,v,params)
+	#(t,res) = ode45(g,init_vals,time_points,points=:specified,reltol = 1e-5, abstol = 1e-8)
 
-	(t,res) = ode45(g,init_vals,time_points,points=:specified)
+	#solve using Sundails package
+	g = (t,v,v_dot) -> func(t,v,v_dot,params)
+	#println("values ",init_vals)
+	#println("params ", params)
+	d = Sundials.cvode(g,init_vals,collect(time_points))
+
+	#convert Array{Float64,2} to Array{Array{Float64,1},1}
+	res = Array{Array{Float64,1},1}(size(d)[1])
+	for i in 1:size(d)[1]
+		index=i
+		arr = Array{Float64,1}(size(d)[2])
+		for j in 1:size(d)[2]
+			arr[j] = d[index]
+	    	index+=size(d)[1]
+	   	end
+		res[i] = arr
+    end
 
 	return res
 

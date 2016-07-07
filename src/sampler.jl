@@ -14,12 +14,10 @@ Input:
 
 	- alg: an internal type of the algorithm
 	- model: an internal type of the model
-	- distance_func: one of the possible: euclidian / 
 
 Output:
 
-	- posterior : Array of arrays, each one is the posterior distribtion for each parameter
-	- counter : number of runs for the algorithm in total
+	- internal type of ABC_population
 
 """
 function abc_rejection(alg::ABC_Algorithm,
@@ -63,13 +61,31 @@ end
 
 """
 ABC SMC for parameter inference
+
+Algorithm:
+	1. create populations according to alg specifications
+	2. for the first population : run ABC rejection algorithm with the first epsilon
+	3. for any other population:
+		3.1. sample particle from the previous population
+		3.2 perturb particle according to a pertrubation kernel
+		3.3. simulate a data set using the perturbed particle and compare with original data set with the corresponding epsilon
+		3.4 if particle is accepted, calculate its weight
+	4. return all populations
+
+Input:
+
+	- alg: an internal type of the algorithm
+	- model: an internal type of the model
+
+Output:
+
+	- internal type of ABC_population
 """
 function abc_smc(alg::ABC_Algorithm,
 					model::ABC_Model)
 
 	#get epsilon values for each population
 	epsilon_arr = alg.epsilon
-	#TODO: add an option to run the simulation with automatically generated epsilons (in cases where the epsilon array in alg is empty)
 
 	#save results from each population
 	results = Array{ABC_population,1}(length(epsilon_arr))
@@ -177,8 +193,6 @@ function run_simulation(alg::ABC_Algorithm,model::ABC_Model,params::Array{Float6
 		data[1] = res
 
 	elseif model.integration_mode=="Gillespie"
-
-		#println("params: ", params)
 
 		for i in 1:integration_repeats
 
@@ -289,6 +303,7 @@ function simulate_and_compare_data(alg::ABC_Algorithm,
 	accepted_distances = 0
 
 	for dis in distances
+		#println("dis ", dis)
 
 		if dis<=alg.epsilon[pop_num]
 			accepted_distances +=1
@@ -346,7 +361,6 @@ function calculate_particle_weight(particle::Array{Float64,1},
 			
 			kernel_prob = kernel_prob * pdf(current_kernel,particle[k])
 			
-
 			"""kernel_prob = kernel_prob * pdf(kernels[k],particle[k])"""
 		end
 
@@ -402,7 +416,6 @@ function sample_and_perturb(alg::ABC_Algorithm,
 		sampled_from_prev = StatsBase.sample(prev_particles,WeightVec(prev_weights))
 
 		#perturb the sampled parameters (accodring to kernel)
-		#TODO: check correctness and add more kernels
 		#the kernel is part of the alg and is a specified distribution
 		#go over each parameter and perturb it (change in place of array)
 

@@ -76,11 +76,13 @@ function Gillespie_abc(params::Array{Float64,1},init_values::Array{Float64,1},st
 			time = times[end]
 		end
 
+		
 		#don't allow negative concentrations
 		if (sum(current_values.<0)>0)
 			#one of the species has a negative concentration
 			time = times[end]
 		end
+
 
 		#as long as the next time point is larger than the next wanted time point, need to save the same concentration for all the time points in between
 		while (time >=times[time_counter])
