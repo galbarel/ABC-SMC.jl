@@ -178,13 +178,13 @@ Output:
 function run_simulation(alg::ABC_Algorithm,model::ABC_Model,params::Array{Float64,1})
 
 	#generate a number of data-sets (as set in the alg fields)
-	if model.integration_mode=="ODE"
+	if model.integration_mode!="Gillespie"
 		integration_repeats=1
 	else
 		integration_repeats = model.integration_repeats
 	end
 
-	data = Array{Array{Array{Float64,1},1},1}(integration_repeats)
+	data = Array{Union{Array{Array{Float64,1},1},Array{Random_Walk,1}},1}(integration_repeats)
 
 	if model.integration_mode=="ODE"
 
@@ -198,12 +198,21 @@ function run_simulation(alg::ABC_Algorithm,model::ABC_Model,params::Array{Float6
 
 			#println("Gillespie run ", i)
 
-			#data = abc_gillespie(model.integration_function,stoch_matrix::Array{Int64,2},model.initial_conditions,time_end::Float64,params)
-			#TODO: check gillespie correctness 
+			#data_i = abc_gillespie(model.integration_function,stoch_matrix::Array{Int64,2},model.initial_conditions,time_end::Float64,params)
 			data_i = Gillespie_abc(params,model.initial_conditions,model.integration_matrix,model.integration_hazards,alg.time_points)
 			data[i] = data_i
 		end
 
+	elseif model.integration_mode=="random_walk"
+
+		walks = Array{Random_Walk,1}(model.n_walks)
+
+		for i in 1:model.n_walks
+			#simulating random walks (BM)
+			walks[i] = simulate_random_walk(model.n_steps,model.start_point,params[1],params[2],params[3],model.bias_angle)
+		end
+
+		data[1]=walks
 	end
 
 	return data
@@ -290,6 +299,8 @@ function simulate_and_compare_data(alg::ABC_Algorithm,
 
 		if alg.distance_func == "euclidian"
 			distance = euclidian_distance(alg.data,sim_data_i)
+		elseif alg.distance_func == "hellinger"
+			distance = hellinger_distance(transition_matrix(alg.data),transition_matrix(sim_data_i))
 		else
 			error("simulate_and_compare_data: the requested distance function: " ,alg.distance_func, " is not implemented")
 			return

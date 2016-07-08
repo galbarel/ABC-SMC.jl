@@ -4,6 +4,17 @@ using Gadfly
 using Compose
 using Colors
 
+"""
+internal type of a random walk (for one cell)
+"""
+type Random_Walk
+
+    steps_length::Array{Float64,1}
+    steps_angles::Array{Float64,1}
+    steps_points::Array{Tuple{Float64,Float64},1}
+
+end
+
 abstract ABC_Model
 
 """ internal representation of a model
@@ -75,6 +86,38 @@ type Stochastic_Model <: ABC_Model
 end
 
 
+type Random_Walk_model <: ABC_Model
+
+    #model informaiton
+    name::ASCIIString
+    number::Int
+
+    #parameters
+    num_params::Int
+
+    #prior distributions for parameters
+    priors::Array{Union{Float64,Distributions.Uniform,Distributions.DiscreteUniform,Distributions.Normal,Distributions.LogNormal},1}
+    #priors::Array{Any,1}
+
+    #integration properties
+    integration_mode::ASCIIString
+
+    #walk properties
+    n_steps::Int64 #number of steps for each walk
+    n_walks::Int64 #number of total walks (cells)
+    start_point::Tuple{Float64,Float64}
+    bias_angle::Float64
+
+    """this is the model constructor"""
+    function Random_Walk_model()
+
+        new()
+
+    end
+
+end
+
+
 
 """ internal representation of an Algorithm
 """
@@ -82,7 +125,7 @@ type ABC_Algorithm
 
     #data info
     time_points::FloatRange{Float64}
-    data::Array{Array{Float64,1},1}
+    data::Union{Array{Array{Float64,1},1},Array{Random_Walk,1}}
 
     #epsilon
     epsilon::Array{Float64,1}
@@ -124,7 +167,7 @@ type ABC_population
 end
 
 
-""" save results
+""" save results of ABC rejection or ABC SMC (each population is saved in a separated directory)
 
 """
 function save_results(results::Array{ABC_population,1},model::ABC_Model,path::ASCIIString)
@@ -207,6 +250,9 @@ function save_results(results::Array{ABC_population,1},model::ABC_Model,path::AS
 end
 
 
+"""
+plot the data such that each variable is shown over time
+"""
 function plot_data(data::Array{Array{Float64,1},1},time_points::FloatRange{Float64},num_params::Int64,path::ASCIIString)
     
     df = DataFrame()
