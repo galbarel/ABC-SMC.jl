@@ -31,42 +31,16 @@ function Gillespie_abc(params::Array{Float64,1},init_values::Array{Float64,1},st
 
 		#update the next values and time point
 		time_counter_runs +=1
-		"""
-		if time_counter_runs > 1000000
-			println("algorithm time: ", time)
-		end
-		"""
+
 		(next_values,next_time,total_hazard) = Gillespie_abc_one_step(params,current_values,stoch_matrix,hazards,time)
 		concentrations[time_counter] = next_values
 		time = next_time
 		current_values = next_values
 
-		"""
-		if time_counter_runs > 1000000
-			println("time counter runs: ", time_counter_runs)
-			println("algorithm next time: ", time)
-			println("time counter: ", time_counter)
-			println("next values: ", next_values)
-			println("total hazard: ", total_hazard)
-			println("params: ", params)
-			exit(1)
-		end
-		"""
-		
+		#println("time ", time)
+		#println("values ", current_values)
 
-		"""
-		if (next_values[1]>1e7) || (next_values[2]>1e7)
-			println("params: ", params)
-			println("values: ", concentrations)
-			println("time counter: ", time_counter)
-			println("algorithm time: ", time)
-			println("total hazard: ", total_hazard)
-			println("next values: ", next_values)
-			exit(1)
-		end
-		"""
-
-		if sum(current_values) > (1e7*length(current_values))
+		if sum(current_values) > (1e4*length(current_values))
 			#need to end simulation
 			time = times[end]
 		end		
@@ -88,8 +62,6 @@ function Gillespie_abc(params::Array{Float64,1},init_values::Array{Float64,1},st
 		while (time >=times[time_counter])
 			time_counter +=1
 			time_counter_runs=0
-			#println("time counter: ", time_counter)
-			#println("algorithm time: ", time)
 			concentrations[time_counter] = next_values
 			if time_counter >= length(times)
 				flag = false
@@ -141,22 +113,6 @@ function Gillespie_abc_one_step(params::Array{Float64,1},values::Array{Float64,1
 	#get the probability for each reaction
 	h_probs = h_vals ./ h0
 
-	"""
-	#choose a reaction according to their probabilities
-	rand_int = rand(Uniform(0,1))
-	cum_prob = 0.0
-	chosen_hazard = 0
-
-	for i in 1:length(hazards)
-
-		chosen_hazard = i
-		cum_prob = cum_prob + h_probs[i]
-		if cum_prob > rand_int
-			break
-		end
-
-	end
-	"""
 	#randomly choose a hazard function according to their probabilities
 	chosen_hazard = StatsBase.sample(hazards,WeightVec(h_probs))
 	chosen_hazard_index = findfirst(hazards,chosen_hazard)
